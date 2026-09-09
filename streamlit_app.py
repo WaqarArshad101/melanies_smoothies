@@ -3,6 +3,7 @@ from snowflake.snowpark.functions import col
 import requests
 import pandas as pd
 
+# Write directly to the app
 st.title("🥤 Customize Your Smoothie! 🥤")
 st.write("Choose the fruits you want in your custom Smoothie!")
 
@@ -13,6 +14,8 @@ cnx = st.connection("snowflake")
 session = cnx.session()
 
 my_dataframe = session.table("smoothies.public.fruit_options").select(col('FRUIT_NAME'), col('SEARCH_ON'))
+
+# Convert the Snowpark Dataframe to a Pandas Dataframe so we can use the LOC function
 pd_df = my_dataframe.to_pandas()
 
 ingredients_list = st.multiselect(
@@ -33,3 +36,11 @@ if ingredients_list:
         st.subheader(fruit_chosen + ' Nutrition Information')
         smoothiefroot_response = requests.get("https://my.smoothiefroot.com/api/fruit/" + search_on)
         sf_df = st.dataframe(data=smoothiefroot_response.json(), use_container_width=True)
+
+    time_to_insert = st.button('Submit Order')
+
+    if time_to_insert:
+        my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
+                values ('""" + ingredients_string + """','""" + name_on_order + """') """
+        session.sql(my_insert_stmt).collect()
+        st.success('Your Smoothie is ordered, ' + name_on_order + '!', icon="✅")
